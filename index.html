@@ -1069,6 +1069,8 @@ function openAddModal() {
   document.getElementById('game-notes').value = '';
   document.getElementById('search-group').style.display = 'block';
   document.getElementById('delete-btn-container').innerHTML = '';
+  document.getElementById('game-completed-date').value = '';
+  document.getElementById('game-dropped-date').value = '';
   selectStatus('playing');
   setRating(0);
   document.getElementById('modal-overlay').classList.add('open');
@@ -1108,11 +1110,14 @@ function selectStatus(status) {
   document.getElementById('rating-group').style.display = status === 'completed' ? 'block' : 'none';
   document.getElementById('completed-date-group').style.display = status === 'completed' ? 'block' : 'none';
   document.getElementById('dropped-date-group').style.display = status === 'dropped' ? 'block' : 'none';
-  if (status === 'completed' && !document.getElementById('game-completed-date').value) {
-    document.getElementById('game-completed-date').value = new Date().toISOString().substring(0, 10);
-  }
-  if (status === 'dropped' && !document.getElementById('game-dropped-date').value) {
-    document.getElementById('game-dropped-date').value = new Date().toISOString().substring(0, 10);
+  // Only auto-fill date if adding new game (not editing)
+  if (!editingId) {
+    if (status === 'completed' && !document.getElementById('game-completed-date').value) {
+      document.getElementById('game-completed-date').value = new Date().toISOString().substring(0, 10);
+    }
+    if (status === 'dropped' && !document.getElementById('game-dropped-date').value) {
+      document.getElementById('game-dropped-date').value = new Date().toISOString().substring(0, 10);
+    }
   }
 }
 
