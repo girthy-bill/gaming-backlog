@@ -188,7 +188,7 @@
     }
     .status-tab.active.tab-all { background: var(--purple); }
     .status-tab.active.tab-playing { background: var(--green); color: #000; }
-    .status-tab.active.tab-upcoming { background: var(--blue); color: #000; }
+
     .status-tab.active.tab-backlog { background: var(--yellow); color: #000; }
     .status-tab.active.tab-completed { background: rgba(74,222,128,0.2); border-color: var(--green); color: var(--green); }
     .status-tab.active.tab-dropped { background: rgba(248,113,113,0.2); border-color: var(--red); color: var(--red); }
@@ -237,7 +237,7 @@
     }
     .game-card:active { background: var(--card-hover); }
     .game-card.status-playing { border-left: 3px solid var(--green); }
-    .game-card.status-upcoming { border-left: 3px solid var(--blue); }
+
     .game-card.status-backlog { border-left: 3px solid var(--yellow); }
     .game-card.status-completed { border-left: 3px solid rgba(74,222,128,0.5); }
     .game-card.status-dropped { border-left: 3px solid rgba(248,113,113,0.4); }
@@ -307,7 +307,7 @@
       letter-spacing: 0.3px;
     }
     .badge-playing { background: rgba(74,222,128,0.15); color: var(--green); }
-    .badge-upcoming { background: rgba(96,165,250,0.15); color: var(--blue); }
+
     .badge-backlog { background: rgba(251,191,36,0.15); color: var(--yellow); }
     .badge-completed { background: rgba(74,222,128,0.1); color: rgba(74,222,128,0.7); }
     .badge-dropped { background: rgba(248,113,113,0.1); color: rgba(248,113,113,0.7); }
@@ -704,7 +704,6 @@
     <div class="status-tabs" id="status-tabs">
       <button class="status-tab tab-all active" onclick="setFilter('all')">All <span class="tab-count" id="count-all">0</span></button>
       <button class="status-tab tab-playing" onclick="setFilter('playing')">🎮 Playing <span class="tab-count" id="count-playing">0</span></button>
-      <button class="status-tab tab-upcoming" onclick="setFilter('upcoming')">📅 Upcoming <span class="tab-count" id="count-upcoming">0</span></button>
       <button class="status-tab tab-backlog" onclick="setFilter('backlog')">🎯 Backlog <span class="tab-count" id="count-backlog">0</span></button>
       <button class="status-tab tab-completed" onclick="setFilter('completed')">✅ Completed <span class="tab-count" id="count-completed">0</span></button>
       <button class="status-tab tab-dropped" onclick="setFilter('dropped')">❌ Dropped <span class="tab-count" id="count-dropped">0</span></button>
@@ -835,9 +834,8 @@
     <div class="form-group">
       <label class="form-label">Status</label>
       <div class="status-pills" id="status-pills">
-        <button class="status-pill active" data-status="backlog" onclick="selectStatus('backlog')">🎯 Backlog</button>
-        <button class="status-pill" data-status="playing" onclick="selectStatus('playing')">🎮 Playing</button>
-        <button class="status-pill" data-status="upcoming" onclick="selectStatus('upcoming')">📅 Upcoming</button>
+        <button class="status-pill active" data-status="playing" onclick="selectStatus('playing')">🎮 Playing</button>
+        <button class="status-pill" data-status="backlog" onclick="selectStatus('backlog')">🎯 Backlog</button>
         <button class="status-pill" data-status="completed" onclick="selectStatus('completed')">✅ Completed</button>
         <button class="status-pill" data-status="dropped" onclick="selectStatus('dropped')">❌ Dropped</button>
       </div>
@@ -883,7 +881,7 @@
 
     <!-- Completion date -->
     <div class="form-group" id="completed-date-group" style="display:none">
-      <label class="form-label">Completion Date</label>
+      <label class="form-label">Completion Date <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
       <input class="form-input" type="date" id="game-completed-date"/>
     </div>
 
@@ -1075,7 +1073,7 @@ function openAddModal() {
   document.getElementById('game-notes').value = '';
   document.getElementById('search-group').style.display = 'block';
   document.getElementById('delete-btn-container').innerHTML = '';
-  selectStatus('backlog');
+  selectStatus('playing');
   setRating(0);
   document.getElementById('modal-overlay').classList.add('open');
   setTimeout(() => document.getElementById('game-search-input').focus(), 300);
@@ -1241,11 +1239,12 @@ function getFilteredGames() {
     return b.addedAt - a.addedAt;
   });
 
-  // Always put "playing" first if showing all
-  if (currentFilter === 'all') {
+  // Group: playing first, then backlog, then rest
+  if (currentFilter === 'all' && sort === 'date_added') {
     const playing = filtered.filter(g => g.status === 'playing');
-    const rest = filtered.filter(g => g.status !== 'playing');
-    filtered = [...playing, ...rest];
+    const backlog = filtered.filter(g => g.status === 'backlog');
+    const rest = filtered.filter(g => g.status !== 'playing' && g.status !== 'backlog');
+    filtered = [...playing, ...backlog, ...rest];
   }
 
   return filtered;
@@ -1290,11 +1289,11 @@ function gameCardHtml(g) {
 }
 
 function statusLabel(s) {
-  return { playing: '🎮 Playing', upcoming: '📅 Upcoming', backlog: '🎯 Backlog', completed: '✅ Completed', dropped: '❌ Dropped' }[s] || s;
+  return { playing: '🎮 Playing', backlog: '🎯 Backlog', completed: '✅ Completed', dropped: '❌ Dropped' }[s] || s;
 }
 
 function updateCounts() {
-  const counts = { all: games.length, playing: 0, upcoming: 0, backlog: 0, completed: 0, dropped: 0 };
+  const counts = { all: games.length, playing: 0, backlog: 0, completed: 0, dropped: 0 };
   games.forEach(g => { if (counts[g.status] !== undefined) counts[g.status]++; });
   Object.entries(counts).forEach(([k, v]) => {
     const el = document.getElementById('count-' + k);
