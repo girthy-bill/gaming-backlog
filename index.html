@@ -630,9 +630,9 @@
     .toast {
       position: fixed;
       bottom: 90px; left: 50%; transform: translateX(-50%);
-      background: var(--text);
-      border: 1px solid var(--border2);
-      color: var(--bg);
+      background: #1e1e2e;
+      border: 1px solid rgba(255,255,255,0.12);
+      color: #f0f0f8;
       padding: 10px 20px;
       border-radius: 20px;
       font-size: 13px;
@@ -642,7 +642,7 @@
       transition: opacity 0.3s;
       pointer-events: none;
       white-space: nowrap;
-      backdrop-filter: blur(8px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     }
     .toast.show { opacity: 1; }
 
@@ -717,6 +717,7 @@
         <option value="rating">Highest Rated</option>
         <option value="release">Release Date</option>
         <option value="priority">Priority</option>
+        <option value="completed_date">Completion Date</option>
       </select>
       <select class="filter-select" id="platform-filter" onchange="renderGames()">
         <option value="all">All Platforms</option>
@@ -729,6 +730,11 @@
         <option value="Mobile">Mobile</option>
       </select>
     </div>
+    <div class="filter-bar" style="padding-top:0">
+      <select class="filter-select" id="genre-filter" onchange="renderGames()">
+        <option value="all">All Genres</option>
+      </select>
+    </div>
 
     <div class="game-list" id="game-list"></div>
   </div>
@@ -736,8 +742,9 @@
   <!-- ══ STATS PAGE ══ -->
   <div class="page" id="page-stats">
     <div class="stats-page">
-      <div style="font-family:var(--font-display);font-size:22px;font-weight:800;margin-bottom:20px;padding-top:32px">
-        Your Stats
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-top:32px">
+        <div style="font-family:var(--font-display);font-size:22px;font-weight:800">Your Stats</div>
+        <button onclick="exportCSV()" style="padding:8px 16px;background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:12px;font-family:var(--font-body);cursor:pointer">⬇ Export CSV</button>
       </div>
       <div class="stats-hero" id="stats-hero"></div>
       <div class="stats-section-title">By Platform</div>
@@ -746,6 +753,8 @@
       <div class="stat-card">
         <div class="rating-dist" id="stats-ratings"></div>
       </div>
+      <div class="stats-section-title">Completion Timeline</div>
+      <div id="stats-timeline" style="margin-bottom:20px"></div>
       <div class="stats-section-title">Recent Activity</div>
       <div id="stats-recent"></div>
     </div>
@@ -870,6 +879,12 @@
         <span data-val="4" onclick="setRating(4)">★</span>
         <span data-val="5" onclick="setRating(5)">★</span>
       </div>
+    </div>
+
+    <!-- Completion date -->
+    <div class="form-group" id="completed-date-group" style="display:none">
+      <label class="form-label">Completion Date</label>
+      <input class="form-input" type="date" id="game-completed-date"/>
     </div>
 
     <!-- Notes -->
@@ -1097,6 +1112,10 @@ function handleOverlayClick(e) {
 function selectStatus(status) {
   document.querySelectorAll('.status-pill').forEach(p => p.classList.toggle('active', p.dataset.status === status));
   document.getElementById('rating-group').style.display = status === 'completed' ? 'block' : 'none';
+  document.getElementById('completed-date-group').style.display = status === 'completed' ? 'block' : 'none';
+  if (status === 'completed' && !document.getElementById('game-completed-date').value) {
+    document.getElementById('game-completed-date').value = new Date().toISOString().substring(0, 10);
+  }
 }
 
 function getSelectedStatus() {
@@ -1126,6 +1145,7 @@ async function saveGame() {
     game.notes = notes;
     game.priority = priority;
     game.rating = currentRating;
+    game.completedDate = status === 'completed' ? (document.getElementById('game-completed-date').value || null) : null;
     game.updatedAt = Date.now();
   } else {
     if (!selectedGame) { showToast('Please search and select a game first'); return; }
@@ -1177,6 +1197,16 @@ async function deleteGame(id) {
 // ══════════════════════════════════════════════
 //  RENDER
 // ══════════════════════════════════════════════
+function updateGenreFilter() {
+  const sel = document.getElementById('genre-filter');
+  const current = sel.value;
+  const allGenres = new Set();
+  games.forEach(g => (g.genres || []).forEach(genre => allGenres.add(genre)));
+  const sorted = [...allGenres].sort();
+  sel.innerHTML = '<option value="all">All Genres</option>' +
+    sorted.map(g => '<option value="' + escHtml(g) + '"' + (g === current ? ' selected' : '') + '>' + escHtml(g) + '</option>').join('');
+}
+
 function setFilter(filter) {
   currentFilter = filter;
   document.querySelectorAll('.status-tab').forEach(t => {
@@ -1190,9 +1220,11 @@ function getFilteredGames() {
   const platform = document.getElementById('platform-filter').value;
   const sort = document.getElementById('sort-select').value;
 
+  const genre = document.getElementById('genre-filter').value;
   let filtered = games.filter(g => {
     if (currentFilter !== 'all' && g.status !== currentFilter) return false;
     if (platform !== 'all' && g.platform !== platform) return false;
+    if (genre !== 'all' && !(g.genres || []).includes(genre)) return false;
     if (search && !g.title.toLowerCase().includes(search)) return false;
     return true;
   });
@@ -1201,6 +1233,7 @@ function getFilteredGames() {
     if (sort === 'title') return a.title.localeCompare(b.title);
     if (sort === 'rating') return (b.rating || 0) - (a.rating || 0);
     if (sort === 'release') return (b.releaseDate || '').localeCompare(a.releaseDate || '');
+    if (sort === 'completed_date') return (b.completedDate || '').localeCompare(a.completedDate || '');
     if (sort === 'priority') {
       const p = { high: 0, normal: 1, low: 2 };
       return (p[a.priority] || 1) - (p[b.priority] || 1);
@@ -1219,6 +1252,7 @@ function getFilteredGames() {
 }
 
 function renderGames() {
+  updateGenreFilter();
   const list = document.getElementById('game-list');
   const filtered = getFilteredGames();
 
@@ -1246,7 +1280,7 @@ function gameCardHtml(g) {
       : '<div class="game-cover-placeholder">🎮</div>') +
     '<div class="game-info">' +
       '<div class="game-title">' + escHtml(g.title) + priorityBadge + '</div>' +
-      '<div class="game-meta">' + escHtml(g.platform || '') + (genre ? ' · ' + escHtml(genre) : '') + (releaseInfo ? ' · ' + releaseInfo : '') + '</div>' +
+      '<div class="game-meta">' + escHtml(g.platform || '') + (genre ? ' · ' + escHtml(genre) : '') + (releaseInfo ? ' · ' + releaseInfo : '') + (g.completedDate ? ' · ✅ ' + g.completedDate : '') + '</div>' +
       (g.notes ? '<div class="game-meta" style="font-style:italic;opacity:0.7">' + escHtml(g.notes.substring(0, 60)) + (g.notes.length > 60 ? '...' : '') + '</div>' : '') +
       '<div class="game-footer">' +
         '<span class="game-status-badge badge-' + g.status + '">' + statusLabel(g.status) + '</span>' +
@@ -1308,6 +1342,30 @@ function renderStats() {
     '</div>'
   ).join('');
 
+  // Completion timeline
+  const completed_games = games
+    .filter(g => g.status === 'completed' && g.completedDate)
+    .sort((a, b) => b.completedDate.localeCompare(a.completedDate));
+
+  const timelineEl = document.getElementById('stats-timeline');
+  if (completed_games.length === 0) {
+    timelineEl.innerHTML = '<div style="color:var(--text3);font-size:13px;font-style:italic;padding:12px 0">No completed games with dates yet</div>';
+  } else {
+    timelineEl.innerHTML = completed_games.slice(0, 10).map(function(g) {
+      const d = new Date(g.completedDate);
+      const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+      const stars = g.rating ? '★'.repeat(g.rating) : '';
+      return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">' +
+        (g.cover ? '<img src="' + g.cover + '" style="width:36px;height:48px;border-radius:4px;object-fit:cover;flex-shrink:0"/>' : '<div style="width:36px;height:48px;border-radius:4px;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px">🎮</div>') +
+        '<div style="flex:1;min-width:0">' +
+          '<div style="font-family:var(--font-display);font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(g.title) + '</div>' +
+          '<div style="font-size:11px;color:var(--text3)">' + dateStr + (g.platform ? ' · ' + escHtml(g.platform) : '') + '</div>' +
+        '</div>' +
+        (stars ? '<div style="color:var(--yellow);font-size:12px;flex-shrink:0">' + stars + '</div>' : '') +
+      '</div>';
+    }).join('');
+  }
+
   // Recent activity
   const recent = [...games].sort((a, b) => b.updatedAt - a.addedAt).slice(0, 5);
   document.getElementById('stats-recent').innerHTML = recent.map(g =>
@@ -1358,6 +1416,32 @@ function updateNotifBtn() {
 // ══════════════════════════════════════════════
 //  UTILS
 // ══════════════════════════════════════════════
+function exportCSV() {
+  if (!games.length) { showToast('No games to export'); return; }
+  const headers = ['Title', 'Status', 'Platform', 'Genres', 'Rating', 'Priority', 'Release Date', 'Completed Date', 'Notes', 'Added'];
+  const rows = games.map(g => [
+    '"' + (g.title || '').replace(/"/g, '""') + '"',
+    g.status || '',
+    g.platform || '',
+    '"' + (g.genres || []).join(', ') + '"',
+    g.rating || '',
+    g.priority || '',
+    g.releaseDate || '',
+    g.completedDate || '',
+    '"' + (g.notes || '').replace(/"/g, '""') + '"',
+    new Date(g.addedAt).toISOString().substring(0, 10),
+  ]);
+  const csv = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'game-backlog-' + new Date().toISOString().substring(0, 10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Exported ' + games.length + ' games!');
+}
+
 function escHtml(str) {
   if (!str) return '';
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
