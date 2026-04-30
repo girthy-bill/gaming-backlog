@@ -35,7 +35,32 @@
       --font-body: 'DM Sans', sans-serif;
       --radius: 12px;
       --radius-sm: 8px;
+      --nav-bg: rgba(10,10,15,0.95);
+      --modal-bg: #111118;
     }
+
+    /* ── Light mode ── */
+    body.light {
+      --bg: #f4f4f8;
+      --bg2: #ffffff;
+      --bg3: #eaeaf0;
+      --card: rgba(0,0,0,0.03);
+      --card-hover: rgba(0,0,0,0.06);
+      --border: rgba(0,0,0,0.08);
+      --border2: rgba(0,0,0,0.14);
+      --purple: #5b52ee;
+      --purple2: #4740dc;
+      --green: #16a34a;
+      --yellow: #d97706;
+      --red: #dc2626;
+      --blue: #2563eb;
+      --text: #0f0f18;
+      --text2: #4a4a62;
+      --text3: #9090a8;
+      --nav-bg: rgba(244,244,248,0.95);
+      --modal-bg: #ffffff;
+    }
+    body.light::after { opacity: 0.01; }
 
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
@@ -67,7 +92,7 @@
 
     /* ── Header ── */
     .app-header {
-      padding: 52px 20px 20px;
+      padding: 56px 20px 16px;
       position: relative;
     }
     .app-header-top {
@@ -82,6 +107,8 @@
       font-weight: 800;
       letter-spacing: -0.5px;
       color: var(--text);
+      line-height: 1.4;
+      padding-top: 4px;
     }
     .app-logo span { color: var(--purple2); }
     .btn-add {
@@ -185,7 +212,7 @@
       outline: none;
       cursor: pointer;
     }
-    .filter-select option { background: var(--bg2); }
+    .filter-select option { background: var(--modal-bg); }
 
     /* ── Game list ── */
     .game-list {
@@ -302,7 +329,7 @@
       position: fixed; bottom: 0; left: 50%;
       transform: translateX(-50%);
       width: 100%; max-width: 480px;
-      background: rgba(10,10,15,0.95);
+      background: var(--nav-bg);
       border-top: 1px solid var(--border);
       display: flex;
       padding-bottom: env(safe-area-inset-bottom);
@@ -341,7 +368,7 @@
       width: 100%;
       max-width: 480px;
       margin: 0 auto;
-      background: var(--bg2);
+      background: var(--modal-bg);
       border-radius: 20px 20px 0 0;
       border-top: 1px solid var(--border2);
       padding: 20px 20px 40px;
@@ -390,7 +417,7 @@
     }
     .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--purple); }
     .form-input::placeholder { color: var(--text3); }
-    .form-select option { background: var(--bg2); }
+    .form-select option { background: var(--modal-bg); }
     .form-textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
 
     /* Search results dropdown */
@@ -631,6 +658,28 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+
+    /* ── Toggle switch ── */
+    .toggle-switch { position: relative; display: inline-block; width: 48px; height: 26px; flex-shrink: 0; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle-track {
+      position: absolute; inset: 0;
+      background: var(--bg3);
+      border-radius: 26px;
+      border: 1px solid var(--border2);
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .toggle-thumb {
+      position: absolute;
+      height: 18px; width: 18px;
+      left: 3px; top: 3px;
+      background: var(--text3);
+      border-radius: 50%;
+      transition: transform 0.3s, background 0.3s;
+    }
+    .toggle-switch input:checked + .toggle-track { background: var(--purple); border-color: var(--purple); }
+    .toggle-switch input:checked + .toggle-track .toggle-thumb { transform: translateX(22px); background: #fff; }
     .page { display: none; }
     .page.active { display: block; }
   </style>
@@ -642,7 +691,7 @@
   <div class="page active" id="page-games">
     <div class="app-header">
       <div class="app-header-top">
-        <div class="app-logo">game<span>log</span></div>
+        <div class="app-logo">Game <span>Backlog</span></div>
         <button class="btn-add" onclick="openAddModal()" aria-label="Add game">+</button>
       </div>
       <div class="search-bar">
@@ -701,6 +750,48 @@
     </div>
   </div>
 
+  <!-- ══ SETTINGS PAGE ══ -->
+  <div class="page" id="page-settings">
+    <div style="padding:56px 20px 20px">
+      <div style="font-family:var(--font-display);font-size:22px;font-weight:800;margin-bottom:24px">Settings</div>
+
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3);margin-bottom:10px">Appearance</div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:24px">
+        <div style="display:flex;align-items:center;padding:16px;gap:12px">
+          <div style="flex:1">
+            <div style="font-size:14px;color:var(--text);margin-bottom:2px">Dark Mode</div>
+            <div style="font-size:12px;color:var(--text3)">Switch between dark and light theme</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="dark-mode-toggle" onchange="toggleDarkMode()" checked/>
+            <span class="toggle-track">
+              <span class="toggle-thumb"></span>
+            </span>
+          </label>
+        </div>
+      </div>
+
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3);margin-bottom:10px">Notifications</div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:24px">
+        <div style="display:flex;align-items:center;padding:16px;gap:12px">
+          <div style="flex:1">
+            <div style="font-size:14px;color:var(--text);margin-bottom:2px">Release Day Alerts</div>
+            <div style="font-size:12px;color:var(--text3)">Notify when an upcoming game releases</div>
+          </div>
+          <button id="notif-btn" onclick="requestNotif()" style="padding:7px 14px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:12px;font-family:var(--font-body);cursor:pointer">Enable</button>
+        </div>
+      </div>
+
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3);margin-bottom:10px">About</div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;font-size:13px;color:var(--text2);line-height:1.6">
+        <strong style="color:var(--text);font-family:var(--font-display)">Game Backlog</strong><br/>
+        Track your games — what you're playing, what's next, and what you've completed.<br/><br/>
+        Game data powered by <strong>RAWG.io</strong>.<br/>
+        Stored securely in Cloudflare KV.
+      </div>
+    </div>
+  </div>
+
 </div><!-- /app -->
 
 <!-- ══ BOTTOM NAV ══ -->
@@ -710,6 +801,9 @@
   </button>
   <button class="nav-btn" id="nav-stats" onclick="showPage('stats'); renderStats()">
     <span class="nav-icon">📊</span>Stats
+  </button>
+  <button class="nav-btn" id="nav-settings" onclick="showPage('settings')">
+    <span class="nav-icon">⚙️</span>Settings
   </button>
 </nav>
 
@@ -820,6 +914,21 @@ function showPage(page) {
   document.getElementById('nav-' + page).classList.add('active');
 }
 
+// ── Dark/Light mode ──────────────────────────────────────
+function toggleDarkMode() {
+  const isDark = document.getElementById('dark-mode-toggle').checked;
+  document.body.classList.toggle('light', !isDark);
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+}
+
+function applyTheme() {
+  const saved = localStorage.getItem('theme') || 'dark';
+  const isDark = saved === 'dark';
+  document.body.classList.toggle('light', !isDark);
+  const toggle = document.getElementById('dark-mode-toggle');
+  if (toggle) toggle.checked = isDark;
+}
+
 // ══════════════════════════════════════════════
 //  DATA — Cloudflare KV via Worker
 // ══════════════════════════════════════════════
@@ -877,14 +986,19 @@ function searchGames() {
   }, 400);
 }
 
+// Store search results in memory to avoid JSON-in-HTML issues
+let searchResultsCache = {};
+
 function renderSearchResults(results) {
   const el = document.getElementById('search-results');
   if (!results.length) { el.classList.remove('show'); return; }
+  searchResultsCache = {};
+  results.slice(0, 6).forEach(g => { searchResultsCache[g.id] = g; });
   el.innerHTML = results.slice(0, 6).map(g => {
     const thumb = g.background_image || '';
     const year = g.released ? g.released.substring(0, 4) : '';
     const platforms = (g.platforms || []).slice(0, 2).map(p => p.platform.name).join(', ');
-    return '<div class="search-result-item" onclick="selectGameFromSearch(' + JSON.stringify(JSON.stringify(g)) + ')">' +
+    return '<div class="search-result-item" onclick="selectGameFromSearch(' + g.id + ')">' +
       (thumb ? '<img class="search-result-thumb" src="' + thumb + '" loading="lazy"/>' : '<div class="search-result-thumb" style="background:var(--bg3)">🎮</div>') +
       '<div class="search-result-info">' +
         '<div class="search-result-title">' + escHtml(g.name) + '</div>' +
@@ -894,8 +1008,9 @@ function renderSearchResults(results) {
   el.classList.add('show');
 }
 
-function selectGameFromSearch(jsonStr) {
-  const g = JSON.parse(jsonStr);
+function selectGameFromSearch(id) {
+  const g = searchResultsCache[id];
+  if (!g) return;
   selectedGame = g;
   document.getElementById('search-results').classList.remove('show');
   document.getElementById('game-search-input').value = g.name;
@@ -1221,7 +1336,22 @@ function checkUpcomingReleases() {
 
 async function requestNotif() {
   if (typeof Notification === 'undefined') return;
+  if (notifPerm === 'granted') return;
   notifPerm = await Notification.requestPermission();
+  updateNotifBtn();
+}
+
+function updateNotifBtn() {
+  const btn = document.getElementById('notif-btn');
+  if (!btn) return;
+  if (notifPerm === 'granted') {
+    btn.textContent = '✓ Enabled';
+    btn.style.color = 'var(--green)';
+    btn.style.borderColor = 'var(--green)';
+  } else if (notifPerm === 'denied') {
+    btn.textContent = 'Blocked';
+    btn.style.color = 'var(--red)';
+  }
 }
 
 // ══════════════════════════════════════════════
@@ -1252,7 +1382,8 @@ if ('serviceWorker' in navigator) {
 //  INIT
 // ══════════════════════════════════════════════
 loadGames();
-requestNotif();
+applyTheme();
+updateNotifBtn();
 </script>
 </body>
 </html>
