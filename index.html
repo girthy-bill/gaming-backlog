@@ -736,16 +736,17 @@
 
   <!-- ══ STATS PAGE ══ -->
   <div class="page" id="page-stats">
-    <div class="stats-page">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-top:32px">
-        <div style="font-family:var(--font-display);font-size:22px;font-weight:800">Your Stats</div>
-        <button onclick="exportCSV()" style="padding:8px 16px;background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:12px;font-family:var(--font-body);cursor:pointer">⬇ Export CSV</button>
+    <div class="app-header" style="padding-bottom:8px">
+      <div class="app-header-top">
+        <div class="app-logo" style="font-size:18px;line-height:1.4;padding-top:4px">Stats</div>
+        <button onclick="exportCSV()" style="padding:7px 14px;background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:12px;font-family:var(--font-body);cursor:pointer">⬇ CSV</button>
       </div>
-      <div class="stats-hero" id="stats-hero"></div>
-      <div id="stats-by-year"></div>
-
     </div>
+    <div class="status-tabs" id="year-tabs" style="padding-bottom:12px"></div>
+    <div style="padding:0 16px"><div class="stats-hero" id="stats-hero"></div></div>
+    <div style="padding:0 16px 20px" id="stats-year-content"></div>
   </div>
+
 
   <!-- ══ SETTINGS PAGE ══ -->
   <div class="page" id="page-settings">
@@ -1297,6 +1298,8 @@ function updateCounts() {
 // ══════════════════════════════════════════════
 //  STATS
 // ══════════════════════════════════════════════
+let currentYearFilter = 'all';
+
 function renderStats() {
   const completed = games.filter(g => g.status === 'completed');
   const playing = games.filter(g => g.status === 'playing');
@@ -1306,74 +1309,102 @@ function renderStats() {
 
   // Summary cards
   document.getElementById('stats-hero').innerHTML =
-    '<div class="stat-card"><div class="stat-card-value">' + games.length + '</div><div class="stat-card-label">Total Games</div></div>' +
+    '<div class="stat-card"><div class="stat-card-value">' + games.length + '</div><div class="stat-card-label">Total</div></div>' +
     '<div class="stat-card"><div class="stat-card-value">' + completed.length + '</div><div class="stat-card-label">Completed</div></div>' +
-    '<div class="stat-card"><div class="stat-card-value">' + playing.length + '</div><div class="stat-card-label">Playing Now</div></div>' +
-    '<div class="stat-card"><div class="stat-card-value">' + backlog.length + '</div><div class="stat-card-label">In Backlog</div></div>' +
-    '<div class="stat-card stats-hero-wide"><div class="stat-card-value">' + avgRating + '</div><div class="stat-card-label">Average Rating</div></div>';
+    '<div class="stat-card"><div class="stat-card-value">' + playing.length + '</div><div class="stat-card-label">Playing</div></div>' +
+    '<div class="stat-card"><div class="stat-card-value">' + avgRating + '</div><div class="stat-card-label">Avg Rating</div></div>';
 
-  // Build year sections — all games grouped by the year they were added or completed
-  // Completed games use completedDate year, others use addedAt year
+  // Group games by year
   const byYear = {};
-
   games.forEach(function(g) {
     let year;
-    if (g.status === 'completed' && g.completedDate) {
-      year = g.completedDate.substring(0, 4);
-    } else if (g.status === 'dropped' && g.droppedDate) {
-      year = g.droppedDate.substring(0, 4);
-    } else {
-      year = new Date(g.addedAt).getFullYear().toString();
-    }
+    if (g.status === 'completed' && g.completedDate) year = g.completedDate.substring(0, 4);
+    else if (g.status === 'dropped' && g.droppedDate) year = g.droppedDate.substring(0, 4);
+    else year = new Date(g.addedAt).getFullYear().toString();
     if (!byYear[year]) byYear[year] = { completed: [], playing: [], backlog: [], dropped: [] };
-    const bucket = byYear[year][g.status] || null;
-    if (bucket) bucket.push(g);
+    if (byYear[year][g.status]) byYear[year][g.status].push(g);
   });
 
   const years = Object.keys(byYear).sort((a, b) => b - a);
-  const yearEl = document.getElementById('stats-by-year');
 
-  if (!years.length) {
-    yearEl.innerHTML = '<div style="color:var(--text3);font-size:13px;font-style:italic;padding:20px 0">No games yet — add some to see your stats!</div>';
-    return;
-  }
+  // Build year tabs
+  const tabsEl = document.getElementById('year-tabs');
+  const allYears = ['all', ...years];
+  tabsEl.innerHTML = allYears.map(function(y) {
+    const isActive = currentYearFilter === y;
+    const count = y === 'all' ? games.length : Object.values(byYear[y]).flat().length;
+    return '<button class="status-tab ' + (isActive ? 'active tab-playing' : '') + '" onclick="setYearFilter(\'' + y + '\')">' +
+      (y === 'all' ? 'All' : y) +
+      ' <span class="tab-count">' + count + '</span></button>';
+  }).join('');
 
-  yearEl.innerHTML = years.map(function(year) {
+  renderYearContent(byYear, years);
+}
+
+function setYearFilter(year) {
+  currentYearFilter = year;
+  // Rebuild tabs highlight
+  document.querySelectorAll('#year-tabs .status-tab').forEach(function(t) {
+    const isActive = t.textContent.trim().startsWith(year === 'all' ? 'All' : year);
+    t.classList.toggle('active', isActive);
+    t.classList.toggle('tab-playing', isActive);
+  });
+
+  // Get byYear from games
+  const byYear = {};
+  games.forEach(function(g) {
+    let y;
+    if (g.status === 'completed' && g.completedDate) y = g.completedDate.substring(0, 4);
+    else if (g.status === 'dropped' && g.droppedDate) y = g.droppedDate.substring(0, 4);
+    else y = new Date(g.addedAt).getFullYear().toString();
+    if (!byYear[y]) byYear[y] = { completed: [], playing: [], backlog: [], dropped: [] };
+    if (byYear[y][g.status]) byYear[y][g.status].push(g);
+  });
+  const years = Object.keys(byYear).sort((a, b) => b - a);
+  renderYearContent(byYear, years);
+}
+
+function renderYearContent(byYear, years) {
+  const contentEl = document.getElementById('stats-year-content');
+  const toShow = currentYearFilter === 'all' ? years : [currentYearFilter];
+
+  contentEl.innerHTML = toShow.map(function(year) {
     const yg = byYear[year];
+    if (!yg) return '';
     const allYearGames = [...yg.completed, ...yg.playing, ...yg.backlog, ...yg.dropped];
     const yearRated = yg.completed.filter(g => g.rating > 0);
     const yearAvg = yearRated.length ? (yearRated.reduce((s, g) => s + g.rating, 0) / yearRated.length).toFixed(1) : null;
 
-    // Year header
-    let html = '<div style="margin-bottom:28px">' +
-      '<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:12px;padding-bottom:10px;border-bottom:2px solid var(--purple)">' +
-        '<div style="font-family:var(--font-display);font-size:24px;font-weight:800;color:var(--text)">' + year + '</div>' +
+    let html = '';
+
+    // Only show year header when showing all years
+    if (currentYearFilter === 'all') {
+      html += '<div style="display:flex;align-items:baseline;gap:10px;margin:20px 0 12px;padding-bottom:10px;border-bottom:2px solid var(--purple)">' +
+        '<div style="font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--text)">' + year + '</div>' +
         '<div style="font-size:12px;color:var(--text3)">' +
           allYearGames.length + ' game' + (allYearGames.length !== 1 ? 's' : '') +
           (yearAvg ? ' · avg ★' + yearAvg : '') +
           (yg.completed.length ? ' · ' + yg.completed.length + ' completed' : '') +
-        '</div>' +
-      '</div>';
+        '</div></div>';
+    }
 
-    // Platform breakdown for the year
+    // Platform breakdown
     const platforms = {};
     allYearGames.forEach(g => { if (g.platform) platforms[g.platform] = (platforms[g.platform] || 0) + 1; });
     const maxP = Math.max(...Object.values(platforms), 1);
     if (Object.keys(platforms).length) {
-      html += '<div style="margin-bottom:12px">' +
+      html += '<div style="margin-bottom:14px">' +
         Object.entries(platforms).sort((a,b) => b[1]-a[1]).map(function([p, c]) {
-          return '<div class="platform-bar">' +
-            '<div class="platform-bar-label">' + escHtml(p) + '</div>' +
+          return '<div class="platform-bar"><div class="platform-bar-label">' + escHtml(p) + '</div>' +
             '<div class="platform-bar-track"><div class="platform-bar-fill" style="width:' + Math.round(c/maxP*100) + '%"></div></div>' +
             '<div class="platform-bar-count">' + c + '</div></div>';
-        }).join('') +
-      '</div>';
+        }).join('') + '</div>';
     }
 
-    // Game row helper
+    // Game row — clickable to edit
     function gameRow(g, dateField, extraRight) {
       const d = g[dateField] ? new Date(g[dateField]).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) : '';
-      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">' +
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="openEditModal(\'' + g.id + '\')">' +
         (g.cover ? '<img src="' + g.cover + '" style="width:32px;height:42px;border-radius:4px;object-fit:cover;flex-shrink:0"/>' : '<div style="width:32px;height:42px;border-radius:4px;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px">🎮</div>') +
         '<div style="flex:1;min-width:0">' +
           '<div style="font-family:var(--font-display);font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(g.title) + '</div>' +
@@ -1383,24 +1414,31 @@ function renderStats() {
       '</div>';
     }
 
-    // Completed games
     if (yg.completed.length) {
-      html += '<div style="font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:8px">✅ Completed</div>';
+      html += '<div style="font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:6px">✅ Completed</div>';
       html += yg.completed.sort((a,b) => (b.completedDate||'').localeCompare(a.completedDate||'')).map(function(g) {
         const stars = g.rating ? '<div style="color:var(--yellow);font-size:11px;flex-shrink:0">' + '★'.repeat(g.rating) + '</div>' : '';
         return gameRow(g, 'completedDate', stars);
       }).join('');
     }
 
-    // Dropped games
     if (yg.dropped.length) {
-      html += '<div style="font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:8px;margin-top:12px">❌ Dropped</div>';
+      html += '<div style="font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;margin-top:14px">❌ Dropped</div>';
       html += yg.dropped.sort((a,b) => (b.droppedDate||'').localeCompare(a.droppedDate||'')).map(function(g) {
         return gameRow(g, 'droppedDate', '');
       }).join('');
     }
 
-    html += '</div>';
+    if (yg.playing.length) {
+      html += '<div style="font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;margin-top:14px">🎮 Playing</div>';
+      html += yg.playing.map(function(g) { return gameRow(g, 'addedAt', ''); }).join('');
+    }
+
+    if (yg.backlog.length) {
+      html += '<div style="font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:6px;margin-top:14px">🎯 Backlog</div>';
+      html += yg.backlog.map(function(g) { return gameRow(g, 'addedAt', ''); }).join('');
+    }
+
     return html;
   }).join('');
 }
