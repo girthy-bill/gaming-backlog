@@ -1341,7 +1341,7 @@ function renderStats() {
     '</div>'
   ).join('');
 
-  // Completion timeline
+  // Completion timeline — grouped by year
   const completed_games = games
     .filter(g => g.status === 'completed' && g.completedDate)
     .sort((a, b) => b.completedDate.localeCompare(a.completedDate));
@@ -1350,17 +1350,44 @@ function renderStats() {
   if (completed_games.length === 0) {
     timelineEl.innerHTML = '<div style="color:var(--text3);font-size:13px;font-style:italic;padding:12px 0">No completed games with dates yet</div>';
   } else {
-    timelineEl.innerHTML = completed_games.slice(0, 10).map(function(g) {
-      const d = new Date(g.completedDate);
-      const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-      const stars = g.rating ? '★'.repeat(g.rating) : '';
-      return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">' +
-        (g.cover ? '<img src="' + g.cover + '" style="width:36px;height:48px;border-radius:4px;object-fit:cover;flex-shrink:0"/>' : '<div style="width:36px;height:48px;border-radius:4px;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px">🎮</div>') +
-        '<div style="flex:1;min-width:0">' +
-          '<div style="font-family:var(--font-display);font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(g.title) + '</div>' +
-          '<div style="font-size:11px;color:var(--text3)">' + dateStr + (g.platform ? ' · ' + escHtml(g.platform) : '') + '</div>' +
+    // Group by year
+    const byYear = {};
+    completed_games.forEach(function(g) {
+      const year = g.completedDate.substring(0, 4);
+      if (!byYear[year]) byYear[year] = [];
+      byYear[year].push(g);
+    });
+
+    const years = Object.keys(byYear).sort((a, b) => b - a);
+
+    timelineEl.innerHTML = years.map(function(year) {
+      const yearGames = byYear[year];
+      const avgRating = yearGames.filter(g => g.rating).length
+        ? (yearGames.filter(g => g.rating).reduce((s, g) => s + g.rating, 0) / yearGames.filter(g => g.rating).length).toFixed(1)
+        : null;
+
+      const gamesHtml = yearGames.map(function(g) {
+        const d = new Date(g.completedDate);
+        const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        const stars = g.rating ? '★'.repeat(g.rating) : '';
+        return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">' +
+          (g.cover
+            ? '<img src="' + g.cover + '" style="width:36px;height:48px;border-radius:4px;object-fit:cover;flex-shrink:0"/>'
+            : '<div style="width:36px;height:48px;border-radius:4px;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px">🎮</div>') +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-family:var(--font-display);font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(g.title) + '</div>' +
+            '<div style="font-size:11px;color:var(--text3)">' + dateStr + (g.platform ? ' · ' + escHtml(g.platform) : '') + '</div>' +
+          '</div>' +
+          (stars ? '<div style="color:var(--yellow);font-size:12px;flex-shrink:0">' + stars + '</div>' : '') +
+        '</div>';
+      }).join('');
+
+      return '<div style="margin-bottom:20px">' +
+        '<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:8px;padding-bottom:8px;border-bottom:2px solid var(--purple)">' +
+          '<div style="font-family:var(--font-display);font-size:20px;font-weight:800;color:var(--text)">' + year + '</div>' +
+          '<div style="font-size:12px;color:var(--text3)">' + yearGames.length + ' game' + (yearGames.length !== 1 ? 's' : '') + (avgRating ? ' · avg ★' + avgRating : '') + '</div>' +
         '</div>' +
-        (stars ? '<div style="color:var(--yellow);font-size:12px;flex-shrink:0">' + stars + '</div>' : '') +
+        gamesHtml +
       '</div>';
     }).join('');
   }
