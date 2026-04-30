@@ -754,8 +754,7 @@
       </div>
       <div class="stats-section-title">Completion Timeline</div>
       <div id="stats-timeline" style="margin-bottom:20px"></div>
-      <div class="stats-section-title">Recent Activity</div>
-      <div id="stats-recent"></div>
+
     </div>
   </div>
 
@@ -1391,18 +1390,6 @@ function renderStats() {
       '</div>';
     }).join('');
   }
-
-  // Recent activity
-  const recent = [...games].sort((a, b) => b.updatedAt - a.addedAt).slice(0, 5);
-  document.getElementById('stats-recent').innerHTML = recent.map(g =>
-    '<div class="game-card status-' + g.status + '" onclick="openEditModal(\'' + g.id + '\');showPage(\'games\')" style="margin-bottom:8px">' +
-      (g.cover ? '<img class="game-cover" src="' + g.cover + '" loading="lazy"/>' : '<div class="game-cover-placeholder">🎮</div>') +
-      '<div class="game-info">' +
-        '<div class="game-title">' + escHtml(g.title) + '</div>' +
-        '<div class="game-meta">' + escHtml(g.platform || '') + '</div>' +
-        '<div class="game-footer"><span class="game-status-badge badge-' + g.status + '">' + statusLabel(g.status) + '</span></div>' +
-      '</div></div>'
-  ).join('') || '<div style="color:var(--text3);font-size:13px;font-style:italic;padding:12px 0">No games yet</div>';
 }
 
 // ══════════════════════════════════════════════
