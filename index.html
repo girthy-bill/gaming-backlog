@@ -741,6 +741,10 @@
         <div class="app-logo" style="font-size:18px;line-height:1.4;padding-top:4px">Stats</div>
         <button onclick="exportCSV()" style="padding:7px 14px;background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:12px;font-family:var(--font-body);cursor:pointer">⬇ CSV</button>
       </div>
+      <div class="search-bar" style="margin-bottom:0">
+        <span class="search-icon">🔍</span>
+        <input class="search-input" id="stats-search" type="text" placeholder="Search stats..." oninput="renderStats()"/>
+      </div>
     </div>
     <div class="status-tabs" id="year-tabs" style="padding-bottom:4px"></div>
     <div class="status-tabs" id="status-year-tabs" style="padding-top:0;padding-bottom:12px"></div>
@@ -1035,6 +1039,7 @@ function selectGameFromSearch(id) {
   selectedGame = g;
   document.getElementById('search-results').classList.remove('show');
   document.getElementById('game-search-input').value = g.name;
+  document.getElementById('search-group').style.display = 'none';
 
   // Auto-fill platform if recognisable
   const platforms = (g.platforms || []).map(p => p.platform.name);
@@ -1096,8 +1101,21 @@ function openEditModal(id) {
   currentRating = game.rating || 0;
   document.getElementById('modal-title').textContent = 'Edit Game';
   document.getElementById('game-search-input').value = game.title;
+  document.getElementById('search-results').classList.remove('show');
   document.getElementById('search-group').style.display = 'none';
   document.getElementById('selected-game-preview').style.display = 'none';
+
+  // Show current cover + change button
+  const previewEl = document.getElementById('selected-game-preview');
+  previewEl.style.display = 'block';
+  previewEl.innerHTML = '<div class="selected-game-preview">' +
+    (game.cover ? '<img src="' + game.cover + '" style="width:40px;height:54px;border-radius:4px;object-fit:cover"/>' : '<div style="width:40px;height:54px;border-radius:4px;background:var(--bg3);display:flex;align-items:center;justify-content:center;font-size:20px">🎮</div>') +
+    '<div class="selected-game-preview-info">' +
+      '<div class="selected-game-preview-title">' + escHtml(game.title) + '</div>' +
+      '<div class="selected-game-preview-meta">' + escHtml(game.platform || '') + (game.releaseDate ? ' · ' + game.releaseDate.substring(0,4) : '') + '</div>' +
+    '</div>' +
+    '<button onclick="showGameSearch()" style="padding:6px 10px;background:var(--bg3);border:1px solid var(--border2);border-radius:6px;color:var(--text2);font-size:11px;cursor:pointer;flex-shrink:0">Change</button>' +
+  '</div>';
   document.getElementById('game-platform').value = game.platform || '';
   document.getElementById('game-priority').value = game.priority || 'normal';
   document.getElementById('game-notes').value = game.notes || '';
@@ -1113,6 +1131,13 @@ function openEditModal(id) {
 
 function closeModal() {
   document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function showGameSearch() {
+  document.getElementById('search-group').style.display = 'block';
+  document.getElementById('selected-game-preview').style.display = 'none';
+  document.getElementById('game-search-input').value = '';
+  setTimeout(() => document.getElementById('game-search-input').focus(), 100);
 }
 
 function handleOverlayClick(e) {
@@ -1157,6 +1182,15 @@ async function saveGame() {
   if (editingId) {
     game = games.find(g => g.id === editingId);
     if (!game) return;
+    // If a new game was selected via search, update metadata too
+    if (selectedGame) {
+      game.title = selectedGame.name;
+      game.cover = selectedGame.background_image || game.cover;
+      game.releaseDate = selectedGame.released || game.releaseDate;
+      game.genres = (selectedGame.genres || []).map(g => g.name);
+      game.metacritic = selectedGame.metacritic || game.metacritic;
+      game.rawgId = selectedGame.id;
+    }
     game.status = status;
     game.platform = platform;
     game.notes = notes;
@@ -1397,15 +1431,58 @@ function setStatsStatusFilter(status) {
 function renderYearContent(byYear, years) {
   const contentEl = document.getElementById('stats-year-content');
 
-  // Only show selected year
-  const year = currentYearFilter !== 'all' ? currentYearFilter : (years[0] || null);
+  const statsSearch = document.getElementById('stats-search') ? document.getElementById('stats-search').value.toLowerCase() : '';
+
+  // When searching show across all years, otherwise show selected year
+  const yearsToShow = statsSearch ? years : (currentYearFilter !== 'all' ? [currentYearFilter] : [years[0] || null]).filter(Boolean);
+
+  if (!yearsToShow.length) {
+    contentEl.innerHTML = '<div style="color:var(--text3);font-size:13px;font-style:italic;padding:20px 0">No data yet</div>';
+    return;
+  }
+
+  // Render each year section when searching
+  if (statsSearch && yearsToShow.length > 1) {
+    const allResults = [];
+    yearsToShow.forEach(y => {
+      const yg = byYear[y];
+      if (!yg) return;
+      const pool = currentStatusFilter === 'completed' ? yg.completed : yg.dropped;
+      const matches = pool.filter(g => g.title.toLowerCase().includes(statsSearch) || (g.notes || '').toLowerCase().includes(statsSearch) || (g.platform || '').toLowerCase().includes(statsSearch));
+      matches.forEach(g => allResults.push({ ...g, _year: y }));
+    });
+
+    if (!allResults.length) {
+      contentEl.innerHTML = '<div style="color:var(--text3);font-size:13px;font-style:italic;padding:20px 0">No results found</div>';
+      return;
+    }
+
+    const dateField = currentStatusFilter === 'completed' ? 'completedDate' : 'droppedDate';
+    contentEl.innerHTML = '<div style="font-size:11px;color:var(--text3);margin-bottom:12px;font-style:italic">' + allResults.length + ' result' + (allResults.length !== 1 ? 's' : '') + ' across all years</div>' +
+      allResults.sort((a,b) => (b[dateField]||'').localeCompare(a[dateField]||'')).map(function(g) {
+        const d = g[dateField] ? new Date(g[dateField]).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) : '';
+        const stars = (currentStatusFilter === 'completed' && g.rating) ? '<div style="color:var(--yellow);font-size:11px;flex-shrink:0">' + '★'.repeat(g.rating) + '</div>' : '';
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer" data-id="' + g.id + '" onclick="openEditModal(this.dataset.id)">' +
+          (g.cover ? '<img src="' + g.cover + '" style="width:36px;height:48px;border-radius:4px;object-fit:cover;flex-shrink:0"/>' : '<div style="width:36px;height:48px;border-radius:4px;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px">🎮</div>') +
+          '<div style="flex:1;min-width:0">' +
+            '<div style="font-family:var(--font-display);font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + escHtml(g.title) + '</div>' +
+            '<div style="font-size:11px;color:var(--text3)">' + (d || '') + (g.platform && d ? ' · ' : '') + escHtml(g.platform || '') + (g.notes ? ' · ' + escHtml(g.notes) : '') + '</div>' +
+          '</div>' + stars +
+        '</div>';
+      }).join('');
+    return;
+  }
+
+  const year = yearsToShow[0];
   if (!year || !byYear[year]) {
     contentEl.innerHTML = '<div style="color:var(--text3);font-size:13px;font-style:italic;padding:20px 0">No data for this year yet</div>';
     return;
   }
 
   const yg = byYear[year];
-  const gamesToShow = currentStatusFilter === 'completed' ? yg.completed : yg.dropped;
+  // statsSearch already declared above
+  const allGames = currentStatusFilter === 'completed' ? yg.completed : yg.dropped;
+  const gamesToShow = statsSearch ? allGames.filter(g => g.title.toLowerCase().includes(statsSearch) || (g.notes || '').toLowerCase().includes(statsSearch) || (g.platform || '').toLowerCase().includes(statsSearch)) : allGames;
   const dateField = currentStatusFilter === 'completed' ? 'completedDate' : 'droppedDate';
 
   // Platform breakdown for shown games
