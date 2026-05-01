@@ -1184,7 +1184,7 @@ function searchGames() {
   if (q.length < 2) { resultsEl.classList.remove('show'); return; }
   searchTimer = setTimeout(async () => {
     try {
-      const r = await fetch(WORKER_URL + '/search?q=' + encodeURIComponent(q));
+      const r = await fetch(WORKER_URL + '/search?q=' + encodeURIComponent(q), { headers: getAuthHeaders() });
       if (r.ok) {
         const data = await r.json();
         renderSearchResults(data.results || []);
