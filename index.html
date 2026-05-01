@@ -680,12 +680,142 @@
     }
     .toggle-switch input:checked + .toggle-track { background: var(--purple); border-color: var(--purple); }
     .toggle-switch input:checked + .toggle-track .toggle-thumb { transform: translateX(22px); background: #fff; }
+
+    /* ── Auth screen ── */
+    .auth-screen {
+      position: fixed; inset: 0; z-index: 200;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 32px 24px;
+    }
+    .auth-logo {
+      font-family: var(--font-display);
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .auth-logo span { color: var(--purple2); }
+    .auth-sub {
+      font-size: 13px;
+      color: var(--text3);
+      margin-bottom: 40px;
+      text-align: center;
+      font-style: italic;
+    }
+    .auth-card {
+      width: 100%;
+      max-width: 360px;
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 16px;
+      padding: 28px 24px;
+    }
+    .auth-tabs {
+      display: flex;
+      gap: 0;
+      background: var(--bg3);
+      border-radius: 8px;
+      padding: 3px;
+      margin-bottom: 24px;
+    }
+    .auth-tab {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      color: var(--text2);
+      font-family: var(--font-display);
+      font-size: 12px;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .auth-tab.active { background: var(--purple); color: #fff; }
+    .auth-error {
+      color: var(--red);
+      font-size: 12px;
+      margin-top: 8px;
+      min-height: 18px;
+      text-align: center;
+    }
+    .pin-input {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin: 8px 0;
+    }
+    .pin-digit {
+      width: 52px; height: 60px;
+      background: var(--bg3);
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-size: 24px;
+      font-family: var(--font-display);
+      font-weight: 700;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .pin-digit:focus { border-color: var(--purple); }
+    .auth-divider {
+      text-align: center;
+      color: var(--text3);
+      font-size: 11px;
+      margin: 16px 0;
+      position: relative;
+    }
+    .auth-divider::before, .auth-divider::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 40%;
+      height: 1px;
+      background: var(--border);
+    }
+    .auth-divider::before { left: 0; }
+    .auth-divider::after { right: 0; }
     .page { display: none; }
     .page.active { display: block; }
   </style>
 </head>
 <body>
-<div id="app">
+<!-- ══ AUTH SCREEN ══ -->
+<div class="auth-screen" id="auth-screen">
+  <div class="auth-logo">Game <span>Backlog</span></div>
+  <div class="auth-sub">Your personal game library</div>
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Sign In</button>
+      <button class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Create Account</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Username</label>
+      <input class="form-input" id="auth-username" type="text" placeholder="e.g. Kay" autocomplete="username"
+        style="text-transform:lowercase" oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9]/g,'')"/>
+      <div style="font-size:10px;color:var(--text3);margin-top:4px">Lowercase letters and numbers only</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">4-Digit PIN</label>
+      <div class="pin-input">
+        <input class="pin-digit" id="pin-0" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" oninput="pinInput(this,0)"/>
+        <input class="pin-digit" id="pin-1" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" oninput="pinInput(this,1)"/>
+        <input class="pin-digit" id="pin-2" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" oninput="pinInput(this,2)"/>
+        <input class="pin-digit" id="pin-3" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" oninput="pinInput(this,3)"/>
+      </div>
+    </div>
+    <div class="auth-error" id="auth-error"></div>
+    <button class="btn-primary" id="auth-btn" onclick="handleAuth()" style="width:100%;margin-top:8px">Sign In</button>
+  </div>
+</div>
+
+<div id="app" style="display:none">
 
   <!-- ══ GAMES PAGE ══ -->
   <div class="page active" id="page-games">
@@ -796,6 +926,17 @@
         </div>
       </div>
 
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3);margin-bottom:10px">Account</div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:24px">
+        <div style="display:flex;align-items:center;padding:16px;gap:12px">
+          <div style="flex:1">
+            <div style="font-size:14px;color:var(--text);margin-bottom:2px">Signed in as <strong id="settings-username" style="color:var(--purple2)"></strong></div>
+            <div style="font-size:12px;color:var(--text3)">Your library is synced to your account</div>
+          </div>
+          <button onclick="logout()" style="padding:7px 14px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);border-radius:8px;color:var(--red);font-size:12px;font-family:var(--font-body);cursor:pointer">Sign Out</button>
+        </div>
+      </div>
+
       <div style="font-size:11px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;color:var(--text3);margin-bottom:10px">About</div>
       <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;font-size:13px;color:var(--text2);line-height:1.6">
         <strong style="color:var(--text);font-family:var(--font-display)">Game Backlog</strong><br/>
@@ -806,7 +947,7 @@
     </div>
   </div>
 
-</div><!-- /app -->
+</div></div><!-- /app -->
 
 <!-- ══ BOTTOM NAV ══ -->
 <nav class="bottom-nav">
@@ -919,6 +1060,40 @@
 const WORKER_URL = 'https://withered-recipe-a15f.kay-williamluke.workers.dev';
 
 // ══════════════════════════════════════════════
+//  AUTH STATE
+// ══════════════════════════════════════════════
+let currentUser = null; // { username, token }
+
+function getAuthHeaders() {
+  if (!currentUser) return {};
+  return { 'X-Username': currentUser.username, 'X-Token': currentUser.token };
+}
+
+function saveSession(username, token) {
+  currentUser = { username, token };
+  localStorage.setItem('session', JSON.stringify({ username, token }));
+}
+
+function loadSession() {
+  try {
+    const s = localStorage.getItem('session');
+    if (s) { currentUser = JSON.parse(s); return true; }
+  } catch(e) {}
+  return false;
+}
+
+function logout() {
+  currentUser = null;
+  localStorage.removeItem('session');
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('auth-username').value = '';
+  document.getElementById('auth-pin').value = '';
+  document.getElementById('auth-error').textContent = '';
+  games = [];
+}
+
+// ══════════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════════
 let games = [];
@@ -959,7 +1134,8 @@ function applyTheme() {
 // ══════════════════════════════════════════════
 async function loadGames() {
   try {
-    const r = await fetch(WORKER_URL + '/games');
+    const r = await fetch(WORKER_URL + '/games', { headers: getAuthHeaders() });
+    if (r.status === 401) { logout(); return; }
     if (r.ok) {
       const data = await r.json();
       games = data.games || [];
@@ -976,7 +1152,7 @@ async function saveGameToServer(game) {
   try {
     const r = await fetch(WORKER_URL + '/games', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ game }),
     });
     return r.ok;
@@ -987,6 +1163,7 @@ async function deleteGameFromServer(id) {
   try {
     const r = await fetch(WORKER_URL + '/games/' + encodeURIComponent(id), {
       method: 'DELETE',
+      headers: getAuthHeaders(),
     });
     return r.ok;
   } catch(e) { return false; }
@@ -1573,7 +1750,7 @@ async function fetchMissingCovers() {
   let updated = 0;
   for (const game of missing) {
     try {
-      const r = await fetch(WORKER_URL + '/search?q=' + encodeURIComponent(game.title));
+      const r = await fetch(WORKER_URL + '/search?q=' + encodeURIComponent(game.title), { headers: getAuthHeaders() });
       if (!r.ok) continue;
       const data = await r.json();
       const match = (data.results || []).find(g =>
@@ -1647,11 +1824,100 @@ if ('serviceWorker' in navigator) {
 }
 
 // ══════════════════════════════════════════════
+//  AUTH FUNCTIONS
+// ══════════════════════════════════════════════
+let authMode = 'login';
+
+function switchAuthTab(mode) {
+  authMode = mode;
+  document.getElementById('tab-login').classList.toggle('active', mode === 'login');
+  document.getElementById('tab-register').classList.toggle('active', mode === 'register');
+  document.getElementById('auth-btn').textContent = mode === 'login' ? 'Sign In' : 'Create Account';
+  document.getElementById('auth-error').textContent = '';
+}
+
+function pinInput(el, idx) {
+  el.value = el.value.replace(/[^0-9]/g, '');
+  if (el.value && idx < 3) {
+    document.getElementById('pin-' + (idx + 1)).focus();
+  }
+  if (el.value === '' && idx > 0) {
+    document.getElementById('pin-' + (idx - 1)).focus();
+  }
+}
+
+function getPin() {
+  return [0,1,2,3].map(i => document.getElementById('pin-' + i).value).join('');
+}
+
+async function handleAuth() {
+  const username = document.getElementById('auth-username').value.trim().toLowerCase();
+  const pin = getPin();
+  const errEl = document.getElementById('auth-error');
+  const btn = document.getElementById('auth-btn');
+
+  if (!username) { errEl.textContent = 'Please enter a username'; return; }
+  if (username.length < 2) { errEl.textContent = 'Username must be at least 2 characters'; return; }
+  if (pin.length !== 4) { errEl.textContent = 'Please enter your 4-digit PIN'; return; }
+
+  btn.disabled = true;
+  btn.textContent = authMode === 'login' ? 'Signing in...' : 'Creating account...';
+  errEl.textContent = '';
+
+  try {
+    const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
+    const r = await fetch(WORKER_URL + endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, pin }),
+    });
+    const data = await r.json();
+
+    if (!r.ok) {
+      errEl.textContent = data.error || 'Something went wrong';
+      btn.disabled = false;
+      btn.textContent = authMode === 'login' ? 'Sign In' : 'Create Account';
+      return;
+    }
+
+    saveSession(username, data.token);
+    showApp();
+  } catch(e) {
+    errEl.textContent = 'Connection error — please try again';
+    btn.disabled = false;
+    btn.textContent = authMode === 'login' ? 'Sign In' : 'Create Account';
+  }
+}
+
+function showApp() {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  // Update settings username display
+  const uEl = document.getElementById('settings-username');
+  if (uEl && currentUser) uEl.textContent = currentUser.username;
+  applyTheme();
+  updateNotifBtn();
+  loadGames();
+  // Start on home page
+  document.getElementById('page-home').style.display = 'flex';
+  document.getElementById('section-tz').style.display = 'none';
+  document.getElementById('section-dclone').style.display = 'none';
+  document.querySelector('.bottom-nav').style.display = 'none';
+  ['page-tracker','page-zones','page-stats','page-settings'].forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
+}
+
+// ══════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════
-loadGames();
-applyTheme();
-updateNotifBtn();
+if (loadSession()) {
+  showApp();
+} else {
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app').style.display = 'none';
+  applyTheme();
+}
 </script>
 </body>
 </html>

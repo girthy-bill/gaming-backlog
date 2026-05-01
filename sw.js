@@ -1,4 +1,4 @@
-const CACHE_NAME = 'backlog-v1';
+const CACHE_NAME = 'backlog-v2';
 const ASSETS = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
