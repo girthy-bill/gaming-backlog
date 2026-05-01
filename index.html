@@ -189,6 +189,7 @@
     .status-tab.active.tab-playing { background: var(--green); color: #000; }
 
     .status-tab.active.tab-backlog { background: var(--yellow); color: #000; }
+    .status-tab.active.tab-upcoming { background: var(--blue); color: #000; }
     .status-tab.active.tab-completed { background: rgba(74,222,128,0.2); border-color: var(--green); color: var(--green); }
     .status-tab.active.tab-dropped { background: rgba(248,113,113,0.2); border-color: var(--red); color: var(--red); }
 
@@ -238,6 +239,7 @@
     .game-card.status-playing { border-left: 3px solid var(--green); }
 
     .game-card.status-backlog { border-left: 3px solid var(--yellow); }
+    .game-card.status-upcoming { border-left: 3px solid var(--blue); }
     .game-card.status-completed { border-left: 3px solid rgba(74,222,128,0.5); }
     .game-card.status-dropped { border-left: 3px solid rgba(248,113,113,0.4); }
 
@@ -308,6 +310,7 @@
     .badge-playing { background: rgba(74,222,128,0.15); color: var(--green); }
 
     .badge-backlog { background: rgba(251,191,36,0.15); color: var(--yellow); }
+    .badge-upcoming { background: rgba(96,165,250,0.15); color: var(--blue); }
     .badge-completed { background: rgba(74,222,128,0.1); color: rgba(74,222,128,0.7); }
     .badge-dropped { background: rgba(248,113,113,0.1); color: rgba(248,113,113,0.7); }
 
@@ -833,6 +836,7 @@
     <div class="status-tabs" id="status-tabs">
       <button class="status-tab tab-playing active" onclick="setFilter('playing')">🎮 Playing <span class="tab-count" id="count-playing">0</span></button>
       <button class="status-tab tab-backlog" onclick="setFilter('backlog')">🎯 Backlog <span class="tab-count" id="count-backlog">0</span></button>
+      <button class="status-tab tab-upcoming" onclick="setFilter('upcoming')">📅 Upcoming <span class="tab-count" id="count-upcoming">0</span></button>
     </div>
 
     <div class="filter-bar">
@@ -982,6 +986,7 @@
       <div class="status-pills" id="status-pills">
         <button class="status-pill active" data-status="playing" onclick="selectStatus('playing')">🎮 Playing</button>
         <button class="status-pill" data-status="backlog" onclick="selectStatus('backlog')">🎯 Backlog</button>
+        <button class="status-pill" data-status="upcoming" onclick="selectStatus('upcoming')">📅 Upcoming</button>
         <button class="status-pill" data-status="completed" onclick="selectStatus('completed')">✅ Completed</button>
         <button class="status-pill" data-status="dropped" onclick="selectStatus('dropped')">❌ Dropped</button>
       </div>
@@ -1504,7 +1509,7 @@ function gameCardHtml(g) {
       : '<div class="game-cover-placeholder">🎮</div>') +
     '<div class="game-info">' +
       '<div class="game-title">' + escHtml(g.title) + priorityBadge + '</div>' +
-      '<div class="game-meta">' + escHtml(g.platform || '') + (genre ? ' · ' + escHtml(genre) : '') + (releaseInfo ? ' · ' + releaseInfo : '') + (g.completedDate ? ' · ✅ ' + g.completedDate : '') + '</div>' +
+      '<div class="game-meta">' + escHtml(g.platform || '') + (genre ? ' · ' + escHtml(genre) : '') + (g.status === 'upcoming' && g.releaseDate ? ' · 📅 ' + formatReleaseDate(g.releaseDate) : '') + (g.completedDate ? ' · ✅ ' + g.completedDate : '') + '</div>' +
       (g.notes ? '<div class="game-meta" style="font-style:italic;opacity:0.7">' + escHtml(g.notes.substring(0, 60)) + (g.notes.length > 60 ? '...' : '') + '</div>' : '') +
       '<div class="game-footer">' +
         '<span class="game-status-badge badge-' + g.status + '">' + statusLabel(g.status) + '</span>' +
@@ -1514,11 +1519,11 @@ function gameCardHtml(g) {
 }
 
 function statusLabel(s) {
-  return { playing: '🎮 Playing', backlog: '🎯 Backlog', completed: '✅ Completed', dropped: '❌ Dropped' }[s] || s;
+  return { playing: '🎮 Playing', backlog: '🎯 Backlog', upcoming: '📅 Upcoming', completed: '✅ Completed', dropped: '❌ Dropped' }[s] || s;
 }
 
 function updateCounts() {
-  const counts = { playing: 0, backlog: 0 };
+  const counts = { playing: 0, backlog: 0, upcoming: 0 };
   games.forEach(g => { if (counts[g.status] !== undefined) counts[g.status]++; });
   Object.entries(counts).forEach(([k, v]) => {
     const el = document.getElementById('count-' + k);
@@ -1706,7 +1711,7 @@ function renderYearContent(byYear, years) {
 function checkUpcomingReleases() {
   if (notifPerm !== 'granted') return;
   const today = new Date().toISOString().substring(0, 10);
-  games.filter(g => g.status === 'upcoming' && g.releaseDate === today).forEach(g => {
+  games.filter(g => g.status === 'upcoming' && g.releaseDate && g.releaseDate.substring(0,10) === today).forEach(g => {
     new Notification('🎮 ' + g.title + ' releases today!', {
       body: 'Your upcoming game is out now. Time to play!',
       icon: './icons/icon-192.png',
@@ -1800,6 +1805,17 @@ function exportCSV() {
   a.click();
   URL.revokeObjectURL(url);
   showToast('Exported ' + games.length + ' games!');
+}
+
+function formatReleaseDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diff = Math.ceil((d - now) / (1000 * 60 * 60 * 24));
+  const formatted = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  if (diff > 0) return formatted + ' (' + diff + 'd)';
+  if (diff === 0) return formatted + ' (Today!)';
+  return formatted;
 }
 
 function escHtml(str) {
